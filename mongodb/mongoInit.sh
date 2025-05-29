@@ -32,11 +32,11 @@ sleep 20
 
 echo "Initializing config servers and shards..."
 # run_script configsvr01 /scripts/init-configserver.js
-docker compose exec configsvr01 bash  scripts/init-configserver.js
+docker compose exec configsvr01 bash  /scripts/init-configserver.js
 
-docker compose exec shard01-a bash scripts/init-shard01.js
-docker compose exec shard02-a bash scripts/init-shard02.js
-docker compose exec shard03-a bash scripts/init-shard03.js
+docker compose exec shard01-a bash /scripts/init-shard01.js
+docker compose exec shard02-a bash /scripts/init-shard02.js
+docker compose exec shard03-a bash /scripts/init-shard03.js
 
 # run_script shard01-a /scripts/init-shard01.js
 # run_script shard02-a /scripts/init-shard02.js
@@ -48,7 +48,7 @@ wait_for_mongo router01
 
 echo "Initializing router..."
 # docker-compose exec -T router01 sh -c mongosh < /scripts/init-router.js
-docker compose exec router01 mongosh --host localhost:27017 -f scripts/init-router.js
+docker-compose exec router01 sh -c "mongosh < /scripts/init-router.js"
 
 sleep 3
 echo "Waiting for router to settle..."
@@ -68,8 +68,6 @@ docker compose exec shard03-a bash "/scripts/auth.js"
 echo "Waiting for authentication to settle..."
 sleep 5
 
-echo "Už to snad nebude tak zkurvený..."
-
 docker-compose exec -T router01 mongosh -u "$MONGO_USER" -p "$MONGO_PASS" --authenticationDatabase admin <<EOF
 const dbName = "$DB_NAME";
 const shardKey = { PATIENT_ID: "hashed" };
@@ -84,6 +82,8 @@ collections.forEach(col => {
   db.getCollection(col).createIndex({ PATIENT_ID: 1 });
   sh.shardCollection(\`\${dbName}.\${col}\`, shardKey);
 });
+
 EOF
 
-echo "MongoDB cluster is fully initialized and sharded. Ready to use!"
+python3 "$(dirname "$0")/scripts/data-import/import-all.py"
+echo "MongoDB has data and is ready to use!"
