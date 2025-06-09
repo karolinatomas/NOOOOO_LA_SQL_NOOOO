@@ -77,8 +77,23 @@ sh.enableSharding(dbName);
 
 db = db.getSiblingDB(dbName);
 
+db = db.getSiblingDB(dbName);
+db.createCollection("patients",{
+ validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["FIRST", "LAST", "BIRTHDATE"],
+      properties: {
+        FIRST: { bsonType: "string" },
+        LAST: { bsonType: "string" }, 
+        BIRTHDATE: {  bsonType: "string" }
+      }
+    }
+  }
+})
+
+
 collections.forEach(col => {
-  db.createCollection(col);
   db.getCollection(col).createIndex({ PATIENT_ID: 1 });
   sh.shardCollection(\`\${dbName}.\${col}\`, shardKey);
 });
