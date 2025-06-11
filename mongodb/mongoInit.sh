@@ -80,13 +80,43 @@ db = db.getSiblingDB(dbName);
 db = db.getSiblingDB(dbName);
 db.createCollection("patients",{
  validator: {
-    $jsonSchema: {
+    \$jsonSchema: {
       bsonType: "object",
       required: ["FIRST", "LAST", "BIRTHDATE"],
       properties: {
+        PATIENT_ID:{ bsonType:"string"}
         FIRST: { bsonType: "string" },
         LAST: { bsonType: "string" }, 
         BIRTHDATE: {  bsonType: "string" }
+      }
+    }
+  }
+})
+db.createCollection("medications",{
+ validator: {
+    \$jsonSchema: {
+      bsonType: "object",
+      required: ["MEDICATION_START", "MEDICATION_STOP", "PATIENT_ID", "MEDICATION_CODE"],
+      properties: {
+        MEDICATION_START: { bsonType: "string" },
+        MEDICATION_STOP: { bsonType: "string" },
+        PATIENT_ID: { bsonType: "string" },
+        MEDICATION_CODE: { bsonType: "int" }
+      }
+    }
+  }
+})
+db.createCollection("procedures",{
+ validator: {
+    \$jsonSchema: {
+      bsonType: "object",
+      required: ["DATE", "PATIENT_ID", "PROCEDURE_ID", "CODE", "BASE_COST"],
+      properties: {
+         DATE: { bsonType: "string" },
+        PATIENT_ID: { bsonType: "string" },
+        PROCEDURE_ID: { bsonType: "string" },
+        CODE: { bsonType: "int" },
+        BASE_COST: { bsonType: ["int", "double"] }
       }
     }
   }

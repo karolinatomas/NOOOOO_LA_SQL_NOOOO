@@ -1,0 +1,222 @@
+1. Počet předepsaných léků na každého pacienta
+db.medications.aggregate([
+  { $group: { _id: "$PATIENT_ID", totalPrescriptions: { $sum: "$DISPENSES" } } },
+  { $sort: { totalPrescriptions: -1 } }
+])
+
+2. Průměrná cena zákroku podle kódu
+db.procedures.aggregate([
+  { $group: { _id: "$CODE", avgCost: { $avg: "$BASE_COST" } } },
+  { $sort: { avgCost: -1 } }
+])
+
+3. Kolik pacientů podstoupilo zákroky v každém roce?
+db.procedures.aggregate([
+  {
+    $project: {
+      year: { $substr: ["$DATE", 0, 4] },
+      PATIENT_ID: 1
+    }
+  },
+  { $group: { _id: "$year", patients: { $addToSet: "$PATIENT_ID" } } },
+  { $project: { year: "$_id", count: { $size: "$patients" }, _id: 0 } },
+  { $sort: { year: 1 } }
+])
+
+4. Celkové náklady na léky podle pojišťovny (PAYER)
+db.medications.aggregate([
+  { $group: { _id: "$PAYER", totalCost: { $sum: "$TOTALCOST" } } },
+  { $sort: { totalCost: -1 } }
+])
+
+5. Počet unikátních léků, které byly předepsány
+db.medications.aggregate([
+  { $group: { _id: "$DESCRIPTION" } },
+  { $count: "uniqueMedications" }
+])
+
+6. Průměrné HEALTHCARE_EXPENSES pacientů podle pohlaví (GENDER)
+db.patients.aggregate([
+  {
+    $group: {
+      _id: "$GENDER",
+      avgHealthcareExpenses: { $avg: "$HEALTHCARE_EXPENSES" }
+    }
+  }
+])
+
+
+7. Vypsat seznam všech pacientů s polem fullName
+db.patients.aggregate([
+  {
+    $project: {
+      fullName: { $concat: ["$FIRST", " ", "$LAST"] },
+      BIRTHDATE: 1
+    }
+  }
+])
+
+8. Odebrání zbytečných polí (např. interní ENCOUNTER)
+db.medications.aggregate([
+  { $unset: ["ENCOUNTER"] }
+])
+
+9. Zákroky, které měly "Suspected COVID-19" jako důvod
+db.procedures.aggregate([
+  { $match: { REASONDCRIPTION: "Suspected COVID-19" } },
+  {
+    $project: {
+      DATE: 1,
+      PATIENT_ID: 1,
+      CODE: 1,
+      DESCRIPTION: 1,
+      COST: "$BASE_COST"
+    }
+  }
+])
+
+10. Vyhledání pacientů podle rozsahu data narození
+db.patients.aggregate([
+  {
+    $match: {
+      BIRTHDATE: { $gte: "1970-01-01", $lte: "1980-12-31" }
+    }
+  },
+  { $sort: { BIRTHDATE: 1 } }
+])
+
+11. Top 5 nejčastěji předepisovaných léků podle názvu
+db.medications.aggregate([
+  {
+    $group: {
+      _id: "$DESCRIPTION",
+      totalPrescriptions: { $sum: 1 }
+    }
+  },
+  { $sort: { totalPrescriptions: -1 } },
+  { $limit: 5 },
+  {
+    $project: {
+      _id: 0,
+      medication: "$_id",
+      totalPrescriptions: 1
+    }
+  }
+])
+
+12. Vložení embedded dokumentu do dokumentu patients
+db.patients.updateOne(
+  { PATIENT_ID: "f0f3bc8d-ef38-49ce-a2bd-dfdda982b271" },
+  {
+    $set: {
+      CONTACT: {
+        phone: "123-456-7890",
+        email: "patient@example.com",
+        address: {
+          street: "888 Hickle Ferry Suite 38",
+          city: "Springfield",
+          state: "Massachusetts",
+          zip: "1106"
+        }
+      }
+    }
+  }
+)
+
+13. Vložení nového pacienta
+db.patients.insertOne({
+  FIRST: "Jana",
+  LAST: "Nováková",
+  BIRTHDATE: "1982-06-21",
+  PATIENT_ID: "custom-uuid-001"
+})
+
+14. Aktualizace příjmení pacienta
+db.patients.updateOne(
+  { PATIENT_ID: "f0f3bc8d-ef38-49ce-a2bd-dfdda982b271" },
+  { $set: { LAST: "Novotná" } }
+)
+
+15. Smazání pacienta s konkrétním ID
+db.patients.deleteOne({ PATIENT_ID: "f0f3bc8d-ef38-49ce-a2bd-dfdda982b271" })
+
+
+16. Zvýšení počtu výdejů léku o 1
+db.medications.updateMany(
+  { DESCRIPTION: "Mirena 52 MG Intrauterine System" },
+  { $inc: { DISPENSES: 1 } }
+)
+
+17. Přidání nového pole k dokumentům s hodnotou NULL
+db.procedures.updateMany({}, { $set: { doctor: null } })
+
+
+18. Vytvoření nové kolekce s daty původní kolekce procedures a patients
+db.procedures.aggregate([
+  {
+    $lookup: {
+      from: "patients",
+      localField: "PATIENT_ID",
+      foreignField: "PATIENT_ID",
+      as: "patientData"
+    }
+  },
+  { $unwind: "$patientData" },
+  { $out: "procedures_enriched" }
+])
+
+
+19. Vytvoření složeného indexu pro pacienty a diagnózu
+db.patients.createIndex({ SEX: 1, DIAGNOSE: 1 })
+
+
+20. Textový index na diagnózy 
+db.patients.createIndex({ DIAGNOSE: "text" })
+
+
+21. TTL index pro automatické mazání záznamů o medikaci
+db.medications.createIndex(
+  { TIMESTAMP: 1 },
+  { expireAfterSeconds: 2592000 }
+)
+
+22. Analýza vhodnosti shard klíče 
+db.adminCommand({
+  analyzeShardKey: "medical_records.patients",
+  key: { PATIENT_ID: "hashed" }
+})
+
+23. Použití hint() pro vynucení indexu 
+db.patients.find({ PATIENT_ID: "f0f3bc8d-ef38-49ce-a2bd-dfdda982b271" }).hint("PATIENT_ID_hashed")
+
+
+24. Vyhodnocení dotazu pomocí explain()
+db.patients.find({ PATIENT_ID: "f0f3bc8d-ef38-49ce-a2bd-dfdda982b271" }).explain("executionStats")
+
+
+25. Stav shardingu v clusteru
+sh.status()
+
+
+26. Rozložení dat mezi shardy
+sh.getShardedDataDistribution()
+
+
+27. Stav balanceru
+sh.getBalancerState()
+
+
+28. Informace o běžících routerech
+db.adminCommand({ getCmdLineOpts: 1 })
+
+
+29. Ověření chunků a jejich rozložení
+db.chunks.aggregate([
+  { $group: { _id: "$shard", count: { $sum: 1 } } }
+])
+
+30. Stav všech mongos routerů v clusteru
+db.adminCommand({ listShards: 1 })
+
+
+
